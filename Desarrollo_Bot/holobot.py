@@ -511,7 +511,7 @@ def enviar_formulario_mm(user_id):
                                             "emoji": True
                                         },
                                         "value": "value-1"
-                                        }
+                                    }
                             ],
                             "action_id": "radio_buttons-action_m1"
                         }
@@ -540,7 +540,7 @@ def enviar_formulario_mm(user_id):
                                             "emoji": True
                                         },
                                         "value": "value-1"
-                                        }
+                                    }
                             ],
                             "action_id": "radio_buttons-action_m2"
                         }
@@ -643,7 +643,7 @@ def enviar_formulario_mm(user_id):
                                             "emoji": True
                                         },
                                         "value": "value-1"
-                                        }
+                                    }
                             ],
                             "action_id": "radio_buttons-action_m4"
                         }
@@ -672,7 +672,7 @@ def enviar_formulario_mm(user_id):
                                             "emoji": True
                                         },
                                         "value": "value-1"
-                                        }
+                                    }
                             ],
                             "action_id": "radio_buttons-action_m5"
                         }
@@ -777,37 +777,87 @@ def handle_interactions():
     # Actualizar el diccionario response_data con los nuevos valores almacenados
     response_data.update(answers)
 
+    current_date = datetime.date.today()
+    start_of_day = datetime.datetime.combine(
+        current_date, datetime.datetime.min.time())
+    end_of_day = start_of_day + timedelta(days=1)
+
     # Insertar las respuestas en la base de datos de MongoDB
     for action in actions:
         if action['action_id'] == 'actionId-0' and action['value'] == 'click_me_123':
-            response = emoji.emojize(":party_popper:") + emoji.emojize(":rocket:") + " ¡Respuestas recibidas! Gracias por completar el formulario. " + \
-                emoji.emojize(":rocket:") + emoji.emojize(":party_popper:")
-            # Insertar datos a mongo formulario tarde
-            insert_final_questions(
-                user_id, slack_username, full_name, response_data)
-            # eliminar datos de la variable global 'response_data'
-            response_data.clear()
-            try:
-                client.chat_postMessage(channel=user_id, text=response)
-                print("Respuestas enviadas con éxito.")
-            except SlackApiError as e:
-                print(f"Error al enviar las respuestas: {e.response['error']}")
-            break
+            query = {"fecha_hora": {"$gte": start_of_day,
+                                    "$lt": end_of_day}, "id_de_slack": user_id}
+            results_t = final_questions_collection.find(query)
+            contador_t = 0
+
+            for t in results_t:
+                contador_t += 1
+
+            if contador_t == 0:
+                response = emoji.emojize(":party_popper:") + emoji.emojize(":rocket:") + " ¡Respuestas recibidas! Gracias por completar el formulario. " + \
+                    emoji.emojize(":rocket:") + emoji.emojize(":party_popper:")
+
+                # Se verifican los valores a ingresar para segurar unicamente ingresar los valores del formulario correspondiente
+                claves_tarde = ['alguna_tarea_te_llevo_mas_tiempo', 'hay_tareas_que_se_pueden_automatizar', 'tuviste_que_ir_a_algun_lugar_para_hacer_tus_tareas', 'usaste_alguna_metodologia_para_optimizar_el_tiempo',
+                                'tuviste_reuniones_planificadas', 'fueron_satisfactorias_las_reuniones', 'pudiste_resolver_tus_dudas_sobre_el_trabajo', 'productividad_hoy', 'calificacion_descansos']
+                respuestas_tarde = {clave: response_data.get(
+                    clave, 'null') for clave in claves_tarde}
+
+                # Insertar datos a mongo formulario tarde
+                insert_final_questions(
+                    user_id, slack_username, full_name, respuestas_tarde)
+
+                # eliminar datos de la variable global 'response_data'
+                response_data.clear()
+                try:
+                    client.chat_postMessage(channel=user_id, text=response)
+                    print("Respuestas enviadas con éxito.")
+                except SlackApiError as e:
+                    print(
+                        f"Error al enviar las respuestas: {e.response['error']}")
+                break
+            else:
+                texto = emoji.emojize(
+                    ":no_entry_sign:") + " Lo siento, al parecer ya has diligenciado el formulario el día de hoy. " + emoji.emojize(":no_entry_sign:")
+                client.chat_postMessage(channel=user_id, text=texto)
 
         elif action['action_id'] == 'actionId-1' and action['value'] == 'click_me_123':
-            response = emoji.emojize(":party_popper:") + emoji.emojize(":rocket:") + " ¡Respuestas recibidas! Gracias por completar el formulario. " + \
-                emoji.emojize(":rocket:") + emoji.emojize(":party_popper:")
-            # Insertar datos a mongo formulario mañana
-            insert_initial_questions(
-                user_id, slack_username, full_name, response_data)
-            # eliminar datos de la variable global 'response_data'
-            response_data.clear()
-            try:
-                client.chat_postMessage(channel=user_id, text=response)
-                print("Respuestas enviadas con éxito.")
-            except SlackApiError as e:
-                print(f"Error al enviar las respuestas: {e.response['error']}")
-            break
+            query = {"fecha_hora": {"$gte": start_of_day,
+                                    "$lt": end_of_day}, "id_de_slack": user_id}
+            results_m = initial_questions_collection.find(query)
+            contador_m = 0
+
+            for m in results_m:
+                contador_m += 1
+
+            if contador_m == 0:
+                response = emoji.emojize(":party_popper:") + emoji.emojize(":rocket:") + " ¡Respuestas recibidas! Gracias por completar el formulario. " + \
+                    emoji.emojize(":rocket:") + emoji.emojize(":party_popper:")
+
+                # Se verifican los valores a ingresar para segurar unicamente ingresar los valores del formulario correspondiente
+                claves_mañana = ['tienes_agenda_planeada', 'tienes_reuniones_planeadas',
+                                 'con_que_areas_te_vas_a_reunir', 'ayunaste_hoy', 'tienes_deadline_hoy']
+                respuestas_mañana = {clave: response_data.get(
+                    clave, 'null') for clave in claves_mañana}
+
+                # Insertar datos a mongo formulario mañana
+                print(response_data)
+                insert_initial_questions(
+                    user_id, slack_username, full_name, respuestas_mañana)
+                # eliminar datos de la variable global 'response_data'
+                response_data.clear()
+                try:
+                    client.chat_postMessage(channel=user_id, text=response)
+                    print("Respuestas enviadas con éxito.")
+                except SlackApiError as e:
+                    print(
+                        f"Error al enviar las respuestas: {e.response['error']}")
+                break
+
+            else:
+                texto = emoji.emojize(
+                    ":no_entry_sign:") + " Lo siento, al parecer ya has diligenciado el formulario el día de hoy. " + emoji.emojize(":no_entry_sign:")
+                client.chat_postMessage(channel=user_id, text=texto)
 
     return jsonify({'response_action': 'clear'})
 
@@ -819,12 +869,18 @@ response = client.users_list()
 
 # Para enviar a todos los usuarios se debe habilitar users
 # users = response["members"] #esta es la que se debe dejar para generalizacion
-
+'''
 users = {'id': 'U05A9P96PM1', 'team_id': 'T055APAMLKT', 'name': 'cpfedericogomez', 'deleted': False, 'color': 'db3150', 'real_name': 'Federico G�mez', 'tz': 'America/Buenos_Aires', 'tz_label': 'Argentina Time', 'tz_offset': -10800, 'profile': {'title': '', 'phone': '', 'skype': '', 'real_name': 'Federico G�mez', 'real_name_normalized': 'Federico Gomez', 'display_name': 'Federico G�mez', 'display_name_normalized': 'Federico Gomez', 'fields': None, 'status_text': '', 'status_emoji': '', 'status_emoji_display_info': [], 'status_expiration': 0, 'avatar_hash': 'dfc49efefc1b', 'image_original': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_original.png', 'is_custom_image': True, 'first_name': 'Federico', 'last_name': 'G�mez', 'image_24': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_24.png',
                                                                                                                                                                                                                                                     'image_32': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_32.png', 'image_48': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_48.png', 'image_72': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_72.png', 'image_192': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_192.png', 'image_512': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_512.png', 'image_1024': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_1024.png', 'status_text_canonical': '', 'team': 'T055APAMLKT'}, 'is_admin': False, 'is_owner': False, 'is_primary_owner': False, 'is_restricted': False, 'is_ultra_restricted': False, 'is_bot': False, 'is_app_user': False, 'updated': 1685560162, 'is_email_confirmed': True, 'who_can_share_contact_card': 'EVERYONE'}, {'id': 'U05ANG76U3B', 'team_id': 'T055APAMLKT', 'name': 'johan.gbc', 'deleted': False, 'color': '235e5b', 'real_name': 'Johan Andres Rodriguez Rojas', 'tz': 'America/Bogota', 'tz_label': 'South America Pacific Standard Time', 'tz_offset': -18000, 'profile': {'title': '', 'phone': '', 'skype': '', 'real_name': 'Johan Andres Rodriguez Rojas', 'real_name_normalized': 'Johan Andres Rodriguez Rojas', 'display_name': 'Johan Andres Rodriguez Rojas', 'display_name_normalized': 'Johan Andres Rodriguez Rojas', 'fields': None, 'status_text': '', 'status_emoji': '', 'status_emoji_display_info': [], 'status_expiration': 0, 'avatar_hash': '32defbe53b9e', 'image_original': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_original.jpg', 'is_custom_image': True, 'huddle_state': 'default_unset', 'huddle_state_expiration_ts': 0, 'first_name': 'Johan', 'last_name': 'Andres Rodriguez Rojas',
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   'image_24': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_24.jpg', 'image_32': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_32.jpg', 'image_48': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_48.jpg', 'image_72': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_72.jpg', 'image_192': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_192.jpg', 'image_512': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_512.jpg', 'image_1024': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_1024.jpg', 'status_text_canonical': '', 'team': 'T055APAMLKT'}, 'is_admin': True, 'is_owner': False, 'is_primary_owner': False, 'is_restricted': False, 'is_ultra_restricted': False, 'is_bot': False, 'is_app_user': False, 'updated': 1686241517, 'is_email_confirmed': True, 'who_can_share_contact_card': 'EVERYONE'}, {'id': 'U05ANG79VFT', 'team_id': 'T055APAMLKT', 'name': 'santiagocioffi', 'deleted': False, 'color': '9e3997', 'real_name': 'Santiago Cioffi', 'tz': 'America/Buenos_Aires', 'tz_label': 'Argentina Time', 'tz_offset': -10800, 'profile': {'title': '', 'phone': '', 'skype': '', 'real_name': 'Santiago Cioffi', 'real_name_normalized': 'Santiago Cioffi', 'display_name': 'Santiago Cioffi', 'display_name_normalized': 'Santiago Cioffi', 'fields': None, 'status_text': '', 'status_emoji': '', 'status_emoji_display_info': [], 'status_expiration': 0, 'avatar_hash': '51186a830bf4', 'image_original': 'https://avatars.slack-edge.com/2023-05-31/5343725390630_51186a830bf41ecdeb90_original.jpg', 'is_custom_image': True, 'first_name': 'Santiago', 'last_name': 'Cioffi', 'image_24': 'https://avatars.slack-edge.com/2023-05-31/5343725390630_51186a830bf41ecdeb90_24.jpg',
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            'image_32': 'https://avatars.slack-edge.com/2023-05-31/5343725390630_51186a830bf41ecdeb90_32.jpg', 'image_48': 'https://avatars.slack-edge.com/2023-05-31/5343725390630_51186a830bf41ecdeb90_48.jpg', 'image_72': 'https://avatars.slack-edge.com/2023-05-31/5343725390630_51186a830bf41ecdeb90_72.jpg', 'image_192': 'https://avatars.slack-edge.com/2023-05-31/5343725390630_51186a830bf41ecdeb90_192.jpg', 'image_512': 'https://avatars.slack-edge.com/2023-05-31/5343725390630_51186a830bf41ecdeb90_512.jpg', 'image_1024': 'https://avatars.slack-edge.com/2023-05-31/5343725390630_51186a830bf41ecdeb90_1024.jpg', 'status_text_canonical': '', 'team': 'T055APAMLKT'}, 'is_admin': False, 'is_owner': False, 'is_primary_owner': False, 'is_restricted': False, 'is_ultra_restricted': False, 'is_bot': False, 'is_app_user': False, 'updated': 1685541986, 'is_email_confirmed': True, 'who_can_share_contact_card': 'EVERYONE'}, {'id': 'U059VB53R9D', 'team_id': 'T055APAMLKT', 'name': 'agustinvaldes.central', 'deleted': False, 'color': '53b759', 'real_name': 'Agustin Valdes', 'tz': 'America/Buenos_Aires', 'tz_label': 'Argentina Time', 'tz_offset': -10800, 'profile': {'title': '', 'phone': '', 'skype': '', 'real_name': 'Agustin Valdes', 'real_name_normalized': 'Agustin Valdes', 'display_name': 'Agustin Valdes', 'display_name_normalized': 'Agustin Valdes', 'fields': None, 'status_text': '', 'status_emoji': '', 'status_emoji_display_info': [], 'status_expiration': 0, 'avatar_hash': '83c429bafd34', 'image_original': 'https://avatars.slack-edge.com/2023-05-31/5350223916387_83c429bafd347f72ee7e_original.png', 'is_custom_image': True, 'first_name': 'Agustin', 'last_name': 'Valdes', 'image_24': 'https://avatars.slack-edge.com/2023-05-31/5350223916387_83c429bafd347f72ee7e_24.png',
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         'image_32': 'https://avatars.slack-edge.com/2023-05-31/5350223916387_83c429bafd347f72ee7e_32.png', 'image_48': 'https://avatars.slack-edge.com/2023-05-31/5350223916387_83c429bafd347f72ee7e_48.png', 'image_72': 'https://avatars.slack-edge.com/2023-05-31/5350223916387_83c429bafd347f72ee7e_72.png', 'image_192': 'https://avatars.slack-edge.com/2023-05-31/5350223916387_83c429bafd347f72ee7e_192.png', 'image_512': 'https://avatars.slack-edge.com/2023-05-31/5350223916387_83c429bafd347f72ee7e_512.png', 'image_1024': 'https://avatars.slack-edge.com/2023-05-31/5350223916387_83c429bafd347f72ee7e_1024.png', 'status_text_canonical': '', 'team': 'T055APAMLKT'}, 'is_admin': False, 'is_owner': False, 'is_primary_owner': False, 'is_restricted': False, 'is_ultra_restricted': False, 'is_bot': False, 'is_app_user': False, 'updated': 1685541720, 'is_email_confirmed': True, 'who_can_share_contact_card': 'EVERYONE'}
+'''
+# usuarios recortados
+users = {'id': 'U05A9P96PM1', 'team_id': 'T055APAMLKT', 'name': 'cpfedericogomez', 'deleted': False, 'color': 'db3150', 'real_name': 'Federico G�mez', 'tz': 'America/Buenos_Aires', 'tz_label': 'Argentina Time', 'tz_offset': -10800, 'profile': {'title': '', 'phone': '', 'skype': '', 'real_name': 'Federico G�mez', 'real_name_normalized': 'Federico Gomez', 'display_name': 'Federico G�mez', 'display_name_normalized': 'Federico Gomez', 'fields': None, 'status_text': '', 'status_emoji': '', 'status_emoji_display_info': [], 'status_expiration': 0, 'avatar_hash': 'dfc49efefc1b', 'image_original': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_original.png', 'is_custom_image': True, 'first_name': 'Federico', 'last_name': 'G�mez', 'image_24': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_24.png',
+                                                                                                                                                                                                                                                    'image_32': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_32.png', 'image_48': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_48.png', 'image_72': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_72.png', 'image_192': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_192.png', 'image_512': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_512.png', 'image_1024': 'https://avatars.slack-edge.com/2023-05-31/5365239212929_dfc49efefc1b20784fc5_1024.png', 'status_text_canonical': '', 'team': 'T055APAMLKT'}, 'is_admin': False, 'is_owner': False, 'is_primary_owner': False, 'is_restricted': False, 'is_ultra_restricted': False, 'is_bot': False, 'is_app_user': False, 'updated': 1685560162, 'is_email_confirmed': True, 'who_can_share_contact_card': 'EVERYONE'}, {'id': 'U05ANG76U3B', 'team_id': 'T055APAMLKT', 'name': 'johan.gbc', 'deleted': False, 'color': '235e5b', 'real_name': 'Johan Andres Rodriguez Rojas', 'tz': 'America/Bogota', 'tz_label': 'South America Pacific Standard Time', 'tz_offset': -18000, 'profile': {'title': '', 'phone': '', 'skype': '', 'real_name': 'Johan Andres Rodriguez Rojas', 'real_name_normalized': 'Johan Andres Rodriguez Rojas', 'display_name': 'Johan Andres Rodriguez Rojas', 'display_name_normalized': 'Johan Andres Rodriguez Rojas', 'fields': None, 'status_text': '', 'status_emoji': '', 'status_emoji_display_info': [], 'status_expiration': 0, 'avatar_hash': '32defbe53b9e', 'image_original': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_original.jpg', 'is_custom_image': True, 'huddle_state': 'default_unset', 'huddle_state_expiration_ts': 0, 'first_name': 'Johan', 'last_name': 'Andres Rodriguez Rojas',
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  'image_24': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_24.jpg', 'image_32': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_32.jpg', 'image_48': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_48.jpg', 'image_72': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_72.jpg', 'image_192': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_192.jpg', 'image_512': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_512.jpg', 'image_1024': 'https://avatars.slack-edge.com/2023-06-07/5382332660886_32defbe53b9e09a5aecd_1024.jpg', 'status_text_canonical': '', 'team': 'T055APAMLKT'}, 'is_admin': True, 'is_owner': False, 'is_primary_owner': False, 'is_restricted': False, 'is_ultra_restricted': False, 'is_bot': False, 'is_app_user': False, 'updated': 1686241517, 'is_email_confirmed': True, 'who_can_share_contact_card': 'EVERYONE'}
+
 
 # id de usuario de prueba para hacer controles
 usuario_id = 'U05ANG76U3B'
@@ -905,20 +961,88 @@ def predict_new_instance(instance, model):
 
 
 # Formulario de inicio de jornada
-hora_form_mm = '10:11'
+hora_form_mm = '08:23'
 # Formulario de finalizacion de jornada
-hora_form_tt = '15:14'
+hora_form_tt = '08:24'
 
 # Variable global para el manejo del servidor dentro de la funcion
 stop_schedule = False
+
+########################### RESPUESTA DEL MODELO AL USUARIO #######################
+
+
+def respuesta_modelo(user_id):
+    try:
+        # Extracción de datos para alimentar el modelo por usuario
+        current_date = datetime.date.today()
+        start_of_day = datetime.datetime.combine(
+            current_date, datetime.datetime.min.time())
+        end_of_day = start_of_day + timedelta(days=1)
+
+        query = {"fecha_hora": {"$gte": start_of_day,
+                                "$lt": end_of_day}, "id_de_slack": user_id}
+        results_m = initial_questions_collection.find(query)
+        results_t = final_questions_collection.find(query)
+
+        contador_m = 0
+        contador_t = 0
+        for m in results_m:
+            contador_m += 1
+
+        for t in results_t:
+            contador_t += 1
+
+        if contador_m == 1 and contador_t == 1:
+            results_m = initial_questions_collection.find(query)
+            results_t = final_questions_collection.find(query)
+
+            final = {}
+            for result in results_m:
+                # print(len(result))
+                resultado = {
+                    'id_de_slack': result['id_de_slack'],
+                    'tienes_agenda_planeada': result['tienes_agenda_planeada'],
+                    'tienes_reuniones_planeadas': result['tienes_reuniones_planeadas'],
+                    'ayunaste_hoy': result['ayunaste_hoy'],
+                    'con_que_areas_te_vas_a_reunir': result['con_que_areas_te_vas_a_reunir'],
+                    'tienes_deadline_hoy': result['tienes_deadline_hoy']
+                }
+                final.update(resultado)
+
+            for result in results_t:
+                resultado = {
+                    'alguna_tarea_te_llevo_mas_tiempo': result['alguna_tarea_te_llevo_mas_tiempo'],
+                    'hay_tareas_que_se_pueden_automatizar': result['hay_tareas_que_se_pueden_automatizar'],
+                    'tuviste_que_ir_a_algun_lugar_para_hacer_tus_tareas': result['tuviste_que_ir_a_algun_lugar_para_hacer_tus_tareas'],
+                    'usaste_alguna_metodologia_para_optimizar_el_tiempo': result['usaste_alguna_metodologia_para_optimizar_el_tiempo'],
+                    'fueron_satisfactorias_las_reuniones': result['fueron_satisfactorias_las_reuniones'],
+                    'pudiste_resolver_tus_dudas_sobre_el_trabajo': result['pudiste_resolver_tus_dudas_sobre_el_trabajo'],
+                    'tuviste_reuniones_planificadas': result['tuviste_reuniones_planificadas'],
+                    'productividad_hoy': int(result['productividad_hoy']),
+                    'calificacion_descansos': result['calificacion_descansos']
+                }
+                final.update(resultado)
+
+            message = predict_new_instance(final, loaded_model)
+            client.chat_postMessage(
+                channel=user_id, text=message)
+
+        else:
+            message = 'Lo siento, no tiene los registros diarios suficientes para generar una predicción'
+            client.chat_postMessage(
+                channel=user_id, text=message)
+
+    except Exception as e:
+        print("Ocurrió un error:", str(e))
 
 ########################### BUCLE PRINCIPAL DEL BOT ########################
 # Función principal encargada de enviar los formularios, recolectar las respuestas y entregar predicciones a los usuarios.
 
 
 def run_schedule():
-
     # Función para manejar la señal de cierre del servidor
+    print('aqui toy')
+
     def handle_exit(signum, frame):
         global stop_schedule
         stop_schedule = True
@@ -933,7 +1057,6 @@ def run_schedule():
         try:
             current_time = datetime.datetime.now().strftime("%H:%M")
             current_day = datetime.datetime.now().strftime("%A")
-            current_date = datetime.datetime.now().date()
 
             # Verificacion de los dias de ejecicucion del codigo
             if current_day != "Saturday" and current_day != "Sunday":
@@ -996,70 +1119,14 @@ def run_schedule():
 
                     # Extraccion de datos para alimentar el modelo por usuario
 
-                    # Buscar registros de la fecha actual
-                    start_of_day = datetime.datetime.combine(
-                        current_date, datetime.datetime.min.time())
-                    end_of_day = start_of_day + timedelta(days=1)
-
-                    query = {"fecha_hora": {"$gte": start_of_day,
-                                            "$lt": end_of_day}, "id_de_slack": usuario_id}
-                    results_m = initial_questions_collection.find(query)
-                    results_t = final_questions_collection.find(query)
-                    # print(current_date)
-                    # Imprimir los registros encontrados
-                    contador_m = 0
-                    contador_t = 0
-                    for m in results_m:
-                        contador_m += 1
-
-                    for t in results_t:
-                        contador_t += 1
-
-                    if contador_m == 1 and contador_t == 1:
-
+                    for user in users:
                         try:
-                            results_m = initial_questions_collection.find(
-                                query)
-                            results_t = final_questions_collection.find(query)
-
-                            final = {}
-                            for result in results_m:
-                                resultado = {
-                                    'id_de_slack': result['id_de_slack'],
-                                    'tienes_agenda_planeada': result['tienes_agenda_planeada'],
-                                    'tienes_reuniones_planeadas': result['tienes_reuniones_planeadas'],
-                                    'ayunaste_hoy': result['ayunaste_hoy'],
-                                    'con_que_areas_te_vas_a_reunir': result['con_que_areas_te_vas_a_reunir'],
-                                    'tienes_deadline_hoy': result['tienes_deadline_hoy']
-                                }
-                                final.update(resultado)
-
-                            for result in results_t:
-                                resultado = {
-                                    'alguna_tarea_te_llevo_mas_tiempo': result['alguna_tarea_te_llevo_mas_tiempo'],
-                                    'hay_tareas_que_se_pueden_automatizar': result['hay_tareas_que_se_pueden_automatizar'],
-                                    'tuviste_que_ir_a_algun_lugar_para_hacer_tus_tareas': result['tuviste_que_ir_a_algun_lugar_para_hacer_tus_tareas'],
-                                    'usaste_alguna_metodologia_para_optimizar_el_tiempo': result['usaste_alguna_metodologia_para_optimizar_el_tiempo'],
-                                    'fueron_satisfactorias_las_reuniones': result['fueron_satisfactorias_las_reuniones'],
-                                    'pudiste_resolver_tus_dudas_sobre_el_trabajo': result['pudiste_resolver_tus_dudas_sobre_el_trabajo'],
-                                    'tuviste_reuniones_planificadas': result['tuviste_reuniones_planificadas'],
-                                    'productividad_hoy': int(result['productividad_hoy']),
-                                    'calificacion_descansos': result['calificacion_descansos']
-                                }
-                                final.update(resultado)
-                            # print('estos son los resultados: ', final)
-
-                            # Alimentacion del modelo
-                            message = predict_new_instance(final, loaded_model)
-                            client.chat_postMessage(
-                                channel=usuario_id, text=message)
+                            user_id = user["id"]
+                            respuesta_modelo(user_id)
+                            print(
+                                'Respuesta del modelo enviada con exito', user_id)
                         except Exception as e:
-                            print("Error al enviar otro formulario:", str(e))
-
-                    else:
-                        message = 'Lo siento, no tiene los registros diarios suficientes para generar una predicción'
-                        client.chat_postMessage(
-                            channel=usuario_id, text=message)
+                            print("Error al enviar formulario:", str(e))
 
                     # Detener el servidor después de x tiempo
                     server.shutdown()
